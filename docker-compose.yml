@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  copilot-api:
+    build: .
+    ports:
+      - "4141:4141"
+    restart: unless-stopped
+    # Health check validates Copilot API connection
+    # Container restarts automatically if connection fails
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4141/health"]
+      interval: 30s      # Check every 30 seconds
+      timeout: 10s       # 10 second timeout per check
+      retries: 3         # Restart after 3 consecutive failures (~90 seconds)
+      start_period: 30s  # Wait 30 seconds before first check
