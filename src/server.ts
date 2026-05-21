@@ -8,6 +8,9 @@ import { messageRoutes } from "./routes/messages/route"
 import { modelRoutes } from "./routes/models/route"
 import { tokenRoute } from "./routes/token/route"
 import { usageRoute } from "./routes/usage/route"
+import { state } from "./lib/state"
+import { getCopilotToken } from "./services/github/get-copilot-token"
+import { HTTPError } from "./lib/error"
 
 export const server = new Hono()
 
@@ -15,6 +18,57 @@ server.use(logger())
 server.use(cors())
 
 server.get("/", (c) => c.text("Server running"))
+
+// Health check endpoint - verifies Copilot API connection
+server.get("/health", async (c) => {
+  try {
+    // Verify that we have required tokens
+    if (!state.copilotToken || !state.githubToken) {
+      return c.json(
+        {
+          status: "unhealthy",
+          reason: "Missing authentication tokens",
+          timestamp: new Date().toISOString(),
+        },
+        503,
+      )
+    }
+
+    // Verify that we can reach the Copilot API
+    await getCopilotToken()
+
+    return c.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      copilotConnected: true,
+    })
+  } catch (error) {
+    const errorMessage =
+      error instanceof HTTPError
+        ? `Copilot API error: ${error.message}`
+        : error instanceof Error
+          ? error.message
+          : "Unknown error"
+
+    return c.json(
+      {
+        status: "unhealthy",
+        reason: errorMessage,
+        timestamp: new Date().toISOString(),
+        copilotConnected: false,
+      },
+      503,
+    )
+  }
+})
+
+// Liveness probe for Kubernetes - lightweight check
+server.get("/healthz", (c) =>
+  c.json({
+    status: "alive",
+    timestamp: new Date().toISOString(),
+  }),
+)
 
 server.route("/chat/completions", completionRoutes)
 server.route("/models", modelRoutes)
