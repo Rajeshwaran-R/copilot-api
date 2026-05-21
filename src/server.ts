@@ -19,10 +19,10 @@ server.use(cors())
 
 server.get("/", (c) => c.text("Server running"))
 
-// Health check endpoint - verifies Copilot API connection with timeout
+// Health check endpoint - verifies Copilot API connection
 server.get("/health", async (c) => {
   try {
-    // Quick check: Verify that we have required tokens
+    // Verify that we have required tokens
     if (!state.copilotToken || !state.githubToken) {
       return c.json(
         {
@@ -34,17 +34,8 @@ server.get("/health", async (c) => {
       )
     }
 
-    // Verify that we can reach the Copilot API with timeout
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-
-    try {
-      await getCopilotToken()
-      clearTimeout(timeout)
-    } catch (timeoutError) {
-      clearTimeout(timeout)
-      throw timeoutError
-    }
+    // Verify that we can reach the Copilot API
+    await getCopilotToken()
 
     return c.json({
       status: "healthy",
@@ -52,16 +43,12 @@ server.get("/health", async (c) => {
       copilotConnected: true,
     })
   } catch (error) {
-    let errorMessage = "Unknown error"
-
-    if (error instanceof HTTPError) {
-      errorMessage = `Copilot API error: ${error.message}`
-    } else if (error instanceof Error) {
-      errorMessage = error.message
-    }
-
-    // Log the error for debugging
-    console.error("[Health Check] Error:", errorMessage)
+    const errorMessage =
+      error instanceof HTTPError
+        ? `Copilot API error: ${error.message}`
+        : error instanceof Error
+          ? error.message
+          : "Unknown error"
 
     return c.json(
       {
