@@ -3,7 +3,9 @@ services:
     build: .
     ports:
       - "4141:4141"
-    restart: unless-stopped
+    restart: always
+    environment:
+      - GH_TOKEN=${GH_TOKEN}
     # Health check validates Copilot API connection
     # Container restarts automatically if connection fails
     healthcheck:
@@ -11,10 +13,12 @@ services:
       interval: 30s      # Check every 30 seconds
       timeout: 10s       # 10 second timeout per check
       retries: 3         # Restart after 3 consecutive failures (~90 seconds)
-      start_period: 30s  # Wait 30 seconds before first check
+      start_period: 10s  # Wait 10 seconds before first check
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: any
         delay: 5s
-        max_attempts: 3
         window: 120s
+      resources:
+        limits:
+          memory: 200m
